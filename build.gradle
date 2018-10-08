@@ -1,0 +1,60 @@
+buildscript {
+    ext {
+        springBootVersion = '2.0.5.RELEASE'
+    }
+    repositories {
+        mavenCentral()
+        jcenter()
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+        classpath('com.bmuschko:gradle-docker-plugin:3.2.5')
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+apply plugin: com.bmuschko.gradle.docker.DockerRemoteApiPlugin
+
+group 'com.mrusanov'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+    jcenter()
+}
+
+
+dependencies {
+    compile('org.springframework.boot:spring-boot-starter-web')
+    testCompile('org.springframework.boot:spring-boot-starter-test')
+}
+
+import com.bmuschko.gradle.docker.tasks.image.*
+
+docker {
+    url = 'https://192.168.99.100:2376'
+    certPath = new File(System.properties['user.home'], '.docker/machine/certs/')
+}
+
+task copyJar(type: Copy) {
+    dependsOn(bootJar)
+    from        "build/libs/${rootProject.name}-${project.version}.jar"
+    into        'build/docker'
+    rename { String fileName ->
+        fileName.replace("${rootProject.name}-${project.version}.jar", "app.jar")
+    }
+}
+
+task buildDockerImage(type: DockerBuildImage) {
+    dependsOn(copyJar)
+    inputDir = project.file("${project.rootDir}")
+    tag = "${jar.baseName}:${jar.version}"
+}
+
